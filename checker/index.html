@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上石國小作業點交系統</title>
+    
+    <!-- 引入 React 與 Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <style>
+        :root {
+            /* 牛皮紙溫暖色系 */
+            --bg-kraft: #dfcba4; 
+            --paper-bg: #f8f1e5;
+            --text-main: #4a3b32;
+            --text-light: #7a6859;
+            --line-color: #d1bfae;
+            
+            /* 狀態顏色 (溫和簡明色系) */
+            --color-missing: #e57373; /* 柔和紅 */
+            --color-processing: #ffb74d; /* 柔和橘黃 */
+            --color-completed: #81c784; /* 柔和綠 */
+        }
+
+        body {
+            font-family: 'Helvetica Neue', 'Noto Sans TC', '微軟正黑體', sans-serif;
+            background-color: var(--bg-kraft);
+            /* 輕微的紙張紋理感 (利用 CSS 漸層模擬) */
+            background-image: radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
+            background-size: 4px 4px;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            padding: 40px 20px;
+            margin: 0;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        #root {
+            width: 100%;
+            max-width: 650px;
+            background: var(--paper-bg);
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 2px 5px 15px rgba(0, 0, 0, 0.1), 0 0 40px rgba(255, 255, 255, 0.3) inset;
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        /* 頂部裝飾：模擬活頁夾或紙張邊緣 */
+        #root::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 20px,
+                #c1a58d 20px,
+                #c1a58d 30px
+            );
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            opacity: 0.6;
+        }
+
+        h2 {
+            text-align: center;
+            color: var(--text-main);
+            margin-top: 0;
+            margin-bottom: 25px;
+            letter-spacing: 2px;
+        }
+
+        /* 標題與一般輸入框 (筆記本橫線風格) */
+        .paper-input {
+            width: 100%;
+            padding: 10px 5px;
+            font-family: inherit;
+            font-size: 18px;
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--line-color);
+            color: var(--text-main);
+            margin-bottom: 25px;
+            box-sizing: border-box;
+            transition: border-color 0.3s;
+        }
+
+        .paper-input:focus {
+            outline: none;
+            border-bottom-color: #8b5a2b;
+        }
+
+        .paper-input::placeholder {
+            color: #bfaea0;
+        }
+
+        /* 燈號說明區域 */
+        .legend-section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 6px;
+            border: 1px solid var(--line-color);
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .legend-dot {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.1) inset;
+        }
+
+        .legend-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            border-bottom: 1px dashed var(--line-color);
+            color: var(--text-main);
+            font-family: inherit;
+            font-size: 15px;
+            padding: 4px 0;
+        }
+        
+        .legend-input:focus {
+            outline: none;
+            border-bottom-style: solid;
+            border-bottom-color: #8b5a2b;
+        }
+
+        /* 按鈕網格 */
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
+            gap: 12px;
+            margin-bottom: 30px;
+        }
+
+        /* 座號按鈕樣式 */
+        .status-button {
+            aspect-ratio: 1;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: 0 3px 0 rgba(0,0,0,0.1);
+        }
+
+        .status-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 0px 0 rgba(0,0,0,0.1);
+        }
+
+        /* 狀態顏色 */
+        .state-0 { background-color: var(--color-missing); text-shadow: 1px 1px 1px rgba(0,0,0,0.2); }
+        .state-1 { background-color: var(--color-processing); text-shadow: 1px 1px 1px rgba(0,0,0,0.2); }
+        .state-2 { background-color: var(--color-completed); text-shadow: 1px 1px 1px rgba(0,0,0,0.2); }
+
+        /* 輸出報告區域 */
+        .export-section {
+            border-top: 2px dashed var(--line-color);
+            padding-top: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .export-label {
+            font-size: 14px;
+            color: var(--text-light);
+            font-weight: bold;
+        }
+
+        .export-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .export-btn {
+            color: white;
+            border: none;
+            padding: 12px 15px;
+            font-size: 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.2s;
+            flex: 1;
+            white-space: nowrap;
+        }
+
+        /* 一般提醒按鈕 (綠色系) */
+        .btn-general {
+            background-color: #6d8e63;
+            box-shadow: 0 3px 0 #4a6342;
+        }
+        .btn-general:hover { background-color: #5c7853; }
+        .btn-general:active { transform: translateY(3px); box-shadow: 0 0px 0 #4a6342; }
+
+        /* 嚴重提醒按鈕 (紅色系) */
+        .btn-severe {
+            background-color: #ba6b5d;
+            box-shadow: 0 3px 0 #8c4d42;
+        }
+        .btn-severe:hover { background-color: #a35b4f; }
+        .btn-severe:active { transform: translateY(3px); box-shadow: 0 0px 0 #8c4d42; }
+
+        /* 浮水印設定 */
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 15px;
+            font-size: 11px;
+            color: var(--text-main);
+            opacity: 0.25;
+            letter-spacing: 1px;
+            pointer-events: none; /* 避免擋住點擊 */
+            user-select: none;    /* 防止被反白選取 */
+            z-index: 9999;
+        }
+
+        @media (max-width: 480px) {
+            #root { padding: 25px 15px; }
+            .button-grid { gap: 8px; grid-template-columns: repeat(auto-fill, minmax(45px, 1fr)); }
+            .status-button { font-size: 15px; }
+            .export-row { flex-direction: column; align-items: stretch; }
+            .export-btn { width: 100%; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="root"></div>
+
+    <!-- 超細小半透浮水印 -->
+    <div class="watermark">
+        上石國小教師會製作　僅限校內使用　欲使用請聯繫a776663@st.tc.edu.tw 林嘉威老師
+    </div>
+
+    <script type="text/babel">
+        const { useState } = React;
+        const { createRoot } = ReactDOM;
+
+        // 定義座號：1~30號
+        const BUTTON_NUMBERS = [...Array(30).keys()].map(i => i + 1);
+        const STATUS_CLASSES = ['state-0', 'state-1', 'state-2'];
+
+        // 預設按鈕狀態 (全部設為 0)
+        const initialButtonStates = BUTTON_NUMBERS.reduce((acc, num) => {
+            acc[num] = 0; 
+            return acc;
+        }, {});
+
+        const App = () => {
+            const [title, setTitle] = useState('');
+            const [teacherName, setTeacherName] = useState('');
+            const [buttonStates, setButtonStates] = useState(initialButtonStates);
+            
+            // 狀態說明
+            const [legend, setLegend] = useState({
+                0: '未交 (缺交)',
+                1: '處理中 (需補件)',
+                2: '已完成'
+            });
+
+            // 處理說明文字變更
+            const handleLegendChange = (index, value) => {
+                setLegend(prev => ({ ...prev, [index]: value }));
+            };
+
+            // 點擊按鈕切換狀態
+            const handleButtonClick = (number) => {
+                setButtonStates(prevStates => ({
+                    ...prevStates,
+                    [number]: (prevStates[number] + 1) % 3,
+                }));
+            };
+
+            // 產生並輸出報告 (type = 'general' 或 'severe')
+            const generateReport = (type) => {
+                const task = title.trim() || "未命名作業";
+                
+                // 將座號依據狀態分類
+                const groups = { 0: [], 1: [], 2: [] };
+                BUTTON_NUMBERS.forEach(num => {
+                    groups[buttonStates[num]].push(num);
+                });
+
+                let reportText = "";
+
+                // A：一般提醒 (小老師用)
+                if (type === 'general') {
+                    reportText += `【作業繳交狀況紀錄】\n`;
+                    reportText += `作業項目：${task}\n\n`;
+                    
+                    if (groups[0].length > 0) reportText += `🔴 [${legend[0]}]：${groups[0].join(', ')}\n`;
+                    if (groups[1].length > 0) reportText += `🟡 [${legend[1]}]：${groups[1].join(', ')}\n`;
+                    
+                    if (groups[0].length === 0 && groups[1].length === 0) {
+                        reportText += `✅ 全班皆已繳交完畢！\n`;
+                    } else {
+                        reportText += `\n再麻煩小老師協助登記，並提醒同學補交喔！`;
+                    }
+                } 
+                // B：嚴重提醒 (導師協助用)
+                else if (type === 'severe') {
+                    const teacher = teacherName.trim() || "老師";
+                    reportText += `${teacher} 您好：\n\n`;
+                    reportText += `向您回報本次【${task}】的繳交狀況。\n目前缺交情形較嚴重，懇請導師協助關心與提醒以下學生：\n\n`;
+                    
+                    if (groups[0].length > 0) reportText += `🔴 [${legend[0]}] 座號：\n${groups[0].join(', ')}\n\n`;
+                    if (groups[1].length > 0) reportText += `🟡 [${legend[1]}] 座號：\n${groups[1].join(', ')}\n\n`;
+                    
+                    if (groups[0].length === 0 && groups[1].length === 0) {
+                        reportText += `✅ 全班皆已繳交完畢！\n\n`;
+                    } else {
+                        reportText += `再麻煩老師費心督促，辛苦您了，非常感謝！`;
+                    }
+                }
+
+                // 複製到剪貼簿
+                navigator.clipboard.writeText(reportText).then(() => {
+                    let alertMsg = type === 'general' ? "✅ 一般提醒(小老師版) " : "⚠️ 嚴重提醒(導師版) ";
+                    alert(alertMsg + "已成功複製到剪貼簿！\n\n可以直接貼上至 Line 傳送。\n\n預覽內容：\n" + reportText);
+                }).catch(() => {
+                    alert("無法自動複製，請手動複製以下內容：\n\n" + reportText);
+                });
+            };
+
+            return (
+                <>
+                    <h2>📋 上石國小作業點交系統</h2>
+
+                    {/* 標題輸入 */}
+                    <input
+                        type="text"
+                        className="paper-input"
+                        value={title}
+                        onChange={(e) => setTitle(e.target.value)}
+                        placeholder="請輸入作業項目 (例如：國語習作 CH.5)..."
+                    />
+
+                    {/* 燈號意義定義區塊 */}
+                    <div className="legend-section">
+                        <div className="legend-row">
+                            <div className="legend-dot" style={{backgroundColor: 'var(--color-missing)'}}></div>
+                            <input 
+                                type="text" 
+                                className="legend-input"
+                                value={legend[0]} 
+                                onChange={(e) => handleLegendChange(0, e.target.value)}
+                            />
+                        </div>
+                        <div className="legend-row">
+                            <div className="legend-dot" style={{backgroundColor: 'var(--color-processing)'}}></div>
+                            <input 
+                                type="text" 
+                                className="legend-input"
+                                value={legend[1]} 
+                                onChange={(e) => handleLegendChange(1, e.target.value)}
+                            />
+                        </div>
+                        <div className="legend-row">
+                            <div className="legend-dot" style={{backgroundColor: 'var(--color-completed)'}}></div>
+                            <input 
+                                type="text" 
+                                className="legend-input"
+                                value={legend[2]} 
+                                onChange={(e) => handleLegendChange(2, e.target.value)}
+                            />
+                        </div>
+                    </div>
+
+                    {/* 按鈕主區域 */}
+                    <div className="button-grid">
+                        {BUTTON_NUMBERS.map(number => (
+                            <button
+                                key={number}
+                                className={`status-button ${STATUS_CLASSES[buttonStates[number]]}`}
+                                onClick={() => handleButtonClick(number)}
+                                title={`目前狀態: ${legend[buttonStates[number]]}`}
+                            >
+                                {number}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* 輸出報告區域 */}
+                    <div className="export-section">
+                        <div className="export-label">📄 匯出缺交名單</div>
+                        
+                        {/* A: 一般提醒 */}
+                        <div className="export-row" style={{ marginBottom: '5px' }}>
+                            <button className="export-btn btn-general" onClick={() => generateReport('general')}>
+                                📝 一般提醒 (給小老師紀錄用)
+                            </button>
+                        </div>
+
+                        {/* B: 嚴重提醒 */}
+                        <div className="export-row">
+                            <input
+                                type="text"
+                                className="paper-input"
+                                style={{ marginBottom: 0, flex: 1 }}
+                                value={teacherName}
+                                onChange={(e) => setTeacherName(e.target.value)}
+                                placeholder="輸入導師稱呼 (例：王老師)"
+                            />
+                            <button className="export-btn btn-severe" onClick={() => generateReport('severe')}>
+                                ⚠️ 嚴重提醒 (需導師協助)
+                            </button>
+                        </div>
+                    </div>
+                </>
+            );
+        };
+
+        const container = document.getElementById('root');
+        const root = createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
